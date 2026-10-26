@@ -1,0 +1,43 @@
+name: Deals Bot
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # every 15 minutes (GitHub may delay runs a bit)
+  workflow_dispatch:          # lets you press "Run workflow" manually to test
+
+permissions:
+  contents: write             # needed so the bot can save its "already posted" list
+
+concurrency:
+  group: deals-bot
+  cancel-in-progress: false
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install packages
+        run: pip install requests feedparser beautifulsoup4
+
+      - name: Run the bot once
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_ONCE: "1"
+        run: python deals_bot.py
+
+      - name: Save the list of posted deals
+        run: |
+          git config user.name "deals-bot"
+          git config user.email "deals-bot@users.noreply.github.com"
+          git add seen_deals.db
+          git commit -m "update seen deals" || echo "nothing to save"
+          git push
